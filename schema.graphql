@@ -1,6 +1,34 @@
-type ExampleEntity @entity {
+type ActiveProperty @entity {
   id: ID!
-  count: BigInt!
-  nftAddress: Bytes! # address
-  seller: Bytes! # address
+  buyer: Bytes!
+  seller: Bytes!
+  nftAddress: Bytes!
+  tokenIds: [BigInt!]!
+  price: BigInt
+}
+type PropertyListed @entity {
+  id: ID!
+  seller: Bytes!
+  nftAddress: Bytes!
+  tokenIds: [BigInt!]!
+  price: BigInt
+}
+type PropertySold @entity {
+  id: ID!
+  buyer: Bytes!
+  nftAddress: Bytes!
+  tokenIds: [BigInt!]!
+  price: BigInt
+}
+type PropertyListingCancelled @entity {
+  id: ID!
+  seller: Bytes!
+  nftAddress: Bytes!
+  tokenIds: [BigInt!]!
+}
+type RegisteredSeller @entity {
+  id: ID!
+  seller: Bytes!
+  sellerCounter: BigInt!
+  properties: [Bytes!]!
 }

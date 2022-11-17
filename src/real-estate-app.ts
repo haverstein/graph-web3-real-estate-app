@@ -1,62 +1,150 @@
-import { BigInt } from "@graphprotocol/graph-ts"
+import { BigInt, Address, Bytes } from "@graphprotocol/graph-ts";
 import {
   RealEstateApp,
+  PropertyListed as PropertyListedEvent,
+  PropertyListingCancelled as PropertyListingCancelledEvent,
+  PropertySold as PropertySoldEvent,
+  SellerRegistered as SellerRegisteredEvent,
+} from "../generated/RealEstateApp/RealEstateApp";
+import {
+  ActiveProperty,
   PropertyListed,
-  PropertyListingCancelled,
   PropertySold,
-  SellerRegistered
-} from "../generated/RealEstateApp/RealEstateApp"
-import { ExampleEntity } from "../generated/schema"
+  PropertyListingCancelled,
+  RegisteredSeller,
+} from "../generated/schema";
 
-export function handlePropertyListed(event: PropertyListed): void {
+let sellerCounter: any;
+export function handlePropertyListed(event: PropertyListedEvent): void {
   // Entities can be loaded from the store using a string ID; this ID
   // needs to be unique across all entities of the same type
-  let entity = ExampleEntity.load(event.transaction.from.toHex())
+  let propertyListed = PropertyListed.load(
+    getIdFromEventParams(event.params.tokenIds[0], event.params.nftAddress)
+  );
+  let activeProperty = ActiveProperty.load(
+    getIdFromEventParams(event.params.tokenIds[0], event.params.nftAddress)
+  );
+  let registeredSeller = RegisteredSeller.load(event.params.seller.toString());
 
-  // Entities only exist after they have been saved to the store;
-  // `null` checks allow to create entities on demand
-  if (!entity) {
-    entity = new ExampleEntity(event.transaction.from.toHex())
-
-    // Entity fields can be set using simple assignments
-    entity.count = BigInt.fromI32(0)
+  if (!propertyListed) {
+    propertyListed = new PropertyListed(
+      getIdFromEventParams(event.params.tokenIds[0], event.params.nftAddress)
+    );
+  }
+  if (!activeProperty) {
+    activeProperty = new ActiveProperty(
+      getIdFromEventParams(event.params.tokenIds[0], event.params.nftAddress)
+    );
+  }
+  if (!registeredSeller) {
+    registeredSeller = new RegisteredSeller(event.params.seller.toString());
+    sellerCounter = sellerCounter + 1n;
+    registeredSeller.sellerCounter = sellerCounter;
+    registeredSeller.seller = event.params.seller;
+    registeredSeller.properties = [
+      Address.fromString("0x0000000000000000000000000000000000000000"),
+    ];
   }
 
-  // BigInt and BigDecimal math are supported
-  entity.count = entity.count + BigInt.fromI32(1)
+  let properties = [];
+  if (!registeredSeller?.properties) {
+    properties.push(event.params.nftAddress);
+  } else {
+    properties = registeredSeller.properties;
+    properties.push(event.params.nftAddress);
+  }
+  if (!registeredSeller) {
+    registeredSeller.properties = properties;
+  }
 
-  // Entity fields can be set based on event parameters
-  entity.nftAddress = event.params.nftAddress
-  entity.seller = event.params.seller
+  propertyListed.seller = event.params.seller;
+  activeProperty.seller = event.params.seller;
 
-  // Entities can be written to the store with `.save()`
-  entity.save()
+  propertyListed.nftAddress = event.params.nftAddress;
+  activeProperty.nftAddress = event.params.nftAddress;
 
-  // Note: If a handler doesn't require existing field values, it is faster
-  // _not_ to load the entity from the store. Instead, create it fresh with
-  // `new Entity(...)`, set the fields that should be updated and save the
-  // entity back to the store. Fields that were not set or unset remain
-  // unchanged, allowing for partial updates to be applied.
+  let array_tokenId = event.params.tokenIds.map((tokenId) => {
+    return parseInt(tokenId.toString());
+  });
 
-  // It is also possible to access smart contracts from mappings. For
-  // example, the contract that has emitted the event can be connected to
-  // with:
-  //
-  // let contract = Contract.bind(event.address)
-  //
-  // The following functions can then be called on this contract to access
-  // state variables and other data:
-  //
-  // - contract.getOwner(...)
-  // - contract.getProceeds(...)
-  // - contract.getProperty(...)
-  // - contract.getSellerCounter(...)
+  propertyListed.tokenIds = event.params.tokenIds;
+  activeProperty.tokenIds = event.params.tokenIds;
+
+  propertyListed.price = event.params.price;
+  activeProperty.price = event.params.price;
+
+  activeProperty.buyer = Address.fromString(
+    "0x0000000000000000000000000000000000000000"
+  );
+
+  activeProperty.save();
+  propertyListed.save();
+  registeredSeller?.save();
 }
 
 export function handlePropertyListingCancelled(
-  event: PropertyListingCancelled
-): void {}
+  event: PropertyListingCancelledEvent
+): void {
+  let propertyCancelled = PropertyListingCancelled.load(
+    getIdFromEventParams(event.params.tokenIds[0], event.params.nftAddress)
+  );
+  let activeProperty = ActiveProperty.load(
+    getIdFromEventParams(event.params.tokenIds[0], event.params.nftAddress)
+  );
+  let registeredSeller = RegisteredSeller.load(event.params.seller.toString());
 
-export function handlePropertySold(event: PropertySold): void {}
+  if (!propertyCancelled) {
+    propertyCancelled = new PropertyListingCancelled(
+      getIdFromEventParams(event.params.tokenIds[0], event.params.nftAddress)
+    );
+  }
+  propertyCancelled.seller = event.params.seller;
+  propertyCancelled.nftAddress = event.params.nftAddress;
+  propertyCancelled.tokenIds = event.params.tokenIds;
+  activeProperty!.buyer = Address.fromString(
+    "0x000000000000000000000000000000000000dEaD"
+  );
+  registeredSeller!.properties = remove(
+    registeredSeller!.properties,
+    event.params.nftAddress
+  );
+  activeProperty!.save();
+  propertyCancelled.save();
+  registeredSeller!.save();
+}
 
-export function handleSellerRegistered(event: SellerRegistered): void {}
+export function handlePropertySold(event: PropertySoldEvent): void {}
+
+export function handleSellerRegistered(event: SellerRegisteredEvent): void {
+  let registeredSeller = RegisteredSeller.load(
+    event.params.sellerAddress.toString()
+  );
+  if (!registeredSeller) {
+    registeredSeller = new RegisteredSeller(
+      event.params.sellerAddress.toString()
+    );
+  }
+  sellerCounter = event.params.sellerCounter;
+  registeredSeller.seller = event.params.sellerAddress;
+  registeredSeller.sellerCounter = event.params.sellerCounter;
+  registeredSeller.properties = [
+    Address.fromString("0x0000000000000000000000000000000000000000"),
+  ];
+  registeredSeller.save();
+}
+
+function getIdFromEventParams(tokenId: BigInt, nftAddress: Address): string {
+  return tokenId.toHexString() + nftAddress.toHexString();
+}
+function remove(array: Address[] | null, add: Address): Address[] {
+  let a: number = -1;
+  if (array) {
+    for (let i = 0; i < array.length; i++) {
+      if (array[i] == add) a = i;
+    }
+    if (a > -1) array.splice(a, 1);
+    return array;
+  } else {
+    return [Address.fromString("0x0000000000000000000000000000000000000000")];
+  }
+}
