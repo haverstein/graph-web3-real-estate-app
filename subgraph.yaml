@@ -1,0 +1,32 @@
+specVersion: 0.0.1
+schema:
+  file: ./schema.graphql
+dataSources:
+  - kind: ethereum
+    name: RealEstateApp
+    network: mumbai
+    source:
+      address: "0x902706dA59447Bf74101fe79aA3D872b50c94097"
+      abi: RealEstateApp
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.5
+      language: wasm/assemblyscript
+      entities:
+        - PropertyListed
+        - PropertyListingCancelled
+        - PropertySold
+        - SellerRegistered
+      abis:
+        - name: RealEstateApp
+          file: ./abis/RealEstateApp.json
+      eventHandlers:
+        - event: PropertyListed(indexed address,indexed address,uint256[],uint256)
+          handler: handlePropertyListed
+        - event: PropertyListingCancelled(indexed address,indexed address,uint256[])
+          handler: handlePropertyListingCancelled
+        - event: PropertySold(indexed address,indexed address,indexed address,uint256[],uint256)
+          handler: handlePropertySold
+        - event: SellerRegistered(indexed address,indexed uint256)
+          handler: handleSellerRegistered
+      file: ./src/real-estate-app.ts
