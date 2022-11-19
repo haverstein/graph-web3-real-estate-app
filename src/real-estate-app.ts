@@ -14,7 +14,6 @@ import {
   RegisteredSeller,
 } from "../generated/schema";
 
-let sellerCounter: any;
 export function handlePropertyListed(event: PropertyListedEvent): void {
   // Entities can be loaded from the store using a string ID; this ID
   // needs to be unique across all entities of the same type
@@ -38,35 +37,22 @@ export function handlePropertyListed(event: PropertyListedEvent): void {
       getIdFromEventParams(event.params.tokenIds[0], event.params.nftAddress)
     );
   }
-  if (!registeredSeller) {
-    registeredSeller = new RegisteredSeller(event.params.seller.toHexString());
-    sellerCounter = sellerCounter + 1n;
-    registeredSeller.sellerCounter = sellerCounter;
-    registeredSeller.seller = event.params.seller;
-    registeredSeller.properties = [
-      Address.fromString("0x0000000000000000000000000000000000000000"),
-    ];
-  }
 
-  let properties = [];
-  if (!registeredSeller?.properties) {
+  let properties: Bytes[] = [];
+  if (registeredSeller!.properties) {
     properties.push(event.params.nftAddress);
   } else {
-    properties = registeredSeller.properties;
+    properties = registeredSeller!.properties;
     properties.push(event.params.nftAddress);
   }
 
-  registeredSeller.properties = properties;
+  registeredSeller!.properties = properties;
 
   propertyListed.seller = event.params.seller;
   activeProperty.seller = event.params.seller;
 
   propertyListed.nftAddress = event.params.nftAddress;
   activeProperty.nftAddress = event.params.nftAddress;
-
-  let array_tokenId = event.params.tokenIds.map((tokenId) => {
-    return parseInt(tokenId.toString());
-  });
 
   propertyListed.tokenIds = event.params.tokenIds;
   activeProperty.tokenIds = event.params.tokenIds;
@@ -80,7 +66,7 @@ export function handlePropertyListed(event: PropertyListedEvent): void {
 
   activeProperty.save();
   propertyListed.save();
-  registeredSeller?.save();
+  registeredSeller!.save();
 }
 
 export function handlePropertyListingCancelled(
@@ -143,7 +129,7 @@ export function handlePropertySold(event: PropertySoldEvent): void {
 
   propertySold.save();
   activeProperty!.save();
-  registeredSeller?.save();
+  registeredSeller!.save();
 }
 
 export function handleSellerRegistered(event: SellerRegisteredEvent): void {
@@ -155,7 +141,6 @@ export function handleSellerRegistered(event: SellerRegisteredEvent): void {
       event.params.sellerAddress.toHexString()
     );
   }
-  sellerCounter = event.params.sellerCounter;
   registeredSeller.seller = event.params.sellerAddress;
   registeredSeller.sellerCounter = event.params.sellerCounter;
   registeredSeller.properties = [
@@ -167,8 +152,8 @@ export function handleSellerRegistered(event: SellerRegisteredEvent): void {
 function getIdFromEventParams(tokenId: BigInt, nftAddress: Address): string {
   return tokenId.toHexString() + nftAddress.toHexString();
 }
-function remove(array: Address[] | null, add: Address): Address[] {
-  let a: number = -1;
+function remove(array: Bytes[] | null, add: Address): Bytes[] {
+  let a = -1;
   if (array) {
     for (let i = 0; i < array.length; i++) {
       if (array[i] == add) a = i;
